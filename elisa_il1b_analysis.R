@@ -78,9 +78,10 @@ calc_summary <- function(df) {
     ) %>%
     filter(n >= 1) %>%
     mutate(
-      t_val = ifelse(n > 1, qt(0.975, df = n - 1), NA_real_),
-      ci_lo = pmax(mean - t_val * sem, 1),    # floor lower CI
-      ci_hi = mean + t_val * sem
+      t_val         = ifelse(n > 1, qt(0.975, df = n - 1), NA_real_),
+      ci_lo         = pmax(mean - t_val * sem, 1),    # floor lower CI
+      ci_hi         = mean + t_val * sem,
+      Stim_Conc_plot = ifelse(Stim_Conc == 0, 0.1, Stim_Conc)  # 0 → 0.1 for log10 x
     )
 }
 
@@ -116,20 +117,23 @@ y_limits <- c(0.8, 200)        # 0.8 gives visual padding below the 1 pg/mL floo
 #   sum_df      — summary data frame from calc_summary()
 #   stim_label  — "LPS" or "BCG" (used in title and x-axis)
 #   stim_unit   — concentration unit for the x-axis label
+#   x_labels    — character vector of 4 tick labels for breaks c(0.1,1,10,100)
+#                 LPS: c("L0","L1","L10","L100")
+#                 BCG: c("MOI0","MOI1","MOI10","MOI100")
 #
 # Plot layers:
 #   1. CI ribbon  (pale, only for groups with n ≥ 2)
 #   2. Mean line  (connects all groups with n ≥ 1)
 #   3. Mean point (open circle, white fill, coloured outline)
 
-make_plot <- function(sum_df, stim_label, stim_unit) {
+make_plot <- function(sum_df, stim_label, stim_unit, x_labels) {
 
   ggplot() +
 
     # ── CI ribbon: very pale, matching purple, alpha = 0.18 ──
     geom_ribbon(
       data = filter(sum_df, n >= 2),
-      aes(x     = Stim_Conc,
+      aes(x     = Stim_Conc_plot,
           ymin  = ci_lo,
           ymax  = ci_hi,
           fill  = Carprofen,
@@ -140,7 +144,7 @@ make_plot <- function(sum_df, stim_label, stim_unit) {
     # ── Mean line ─────────────────────────────────────────────
     geom_line(
       data = sum_df,
-      aes(x      = Stim_Conc,
+      aes(x      = Stim_Conc_plot,
           y      = mean,
           colour = Carprofen,
           group  = Carprofen),
@@ -150,7 +154,7 @@ make_plot <- function(sum_df, stim_label, stim_unit) {
     # ── Mean point (open circle, white fill) ──────────────────
     geom_point(
       data = sum_df,
-      aes(x      = Stim_Conc,
+      aes(x      = Stim_Conc_plot,
           y      = mean,
           colour = Carprofen,
           group  = Carprofen),
@@ -167,12 +171,13 @@ make_plot <- function(sum_df, stim_label, stim_unit) {
       guide  = "none"         # ribbon fill not shown in legend
     ) +
 
-    # ── x-axis: log1p — handles Stim_Conc = 0 ────────────────
-    # log1p(0)=0, log1p(1)≈0.69, log1p(10)≈2.40, log1p(100)≈4.62
-    scale_x_continuous(
-      trans  = "log1p",
-      breaks = c(0, 1, 10, 100),
-      labels = c("0", "1", "10", "100"),
+    # ── x-axis: true log10; Stim_Conc 0 is plotted at 0.1 ───────
+    # All four tick positions are forced via breaks + labels so
+    # missing data at any level never drops its tick mark.
+    scale_x_log10(
+      limits = c(0.1, 100),
+      breaks = c(0.1, 1, 10, 100),
+      labels = x_labels,
       expand = expansion(mult = 0.06),
       name   = paste0(stim_label, " Concentration (", stim_unit, ")")
     ) +
@@ -231,8 +236,10 @@ make_plot <- function(sum_df, stim_label, stim_unit) {
 # 7. Build plots
 # =============================================================
 
-p_lps <- make_plot(lps_sum, "LPS", unit_lps)
-p_bcg <- make_plot(bcg_sum, "BCG", unit_bcg)
+p_lps <- make_plot(lps_sum, "LPS", unit_lps,
+                   x_labels = c("L0", "L1", "L10", "L100"))
+p_bcg <- make_plot(bcg_sum, "BCG", unit_bcg,
+                   x_labels = c("MOI0", "MOI1", "MOI10", "MOI100"))
 
 # Preview in RStudio Plots pane
 print(p_lps)
