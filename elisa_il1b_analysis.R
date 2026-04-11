@@ -19,6 +19,15 @@ library(readxl)
 library(dplyr)
 library(ggplot2)
 
+# ── Auto-set working directory to the folder containing this script ──
+# Works when sourced with source("path/to/script.R") or run via RStudio.
+if (requireNamespace("rstudioapi", quietly = TRUE) &&
+    rstudioapi::isAvailable()) {
+  setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+} else {
+  setwd(dirname(sys.frame(1)$ofile))
+}
+
 # ── Axis unit labels — edit here if units differ ──────────────
 unit_lps  <- "ng/mL"    # LPS concentration unit
 unit_bcg  <- "µg/mL"    # BCG concentration unit
