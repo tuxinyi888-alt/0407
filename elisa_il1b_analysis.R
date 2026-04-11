@@ -40,7 +40,7 @@ bcg_raw <- read_excel("ELISA_IL1b(BCG).xlsx",
 # =============================================================
 # 2. Pre-process
 # =============================================================
-# • Apply 10 pg/mL detection floor BEFORE any log transform
+# • Apply 1 pg/mL detection floor BEFORE any log transform
 # • Carprofen → ordered factor (levels from actual file values)
 # • Stim_Conc stays numeric (0, 1, 10, 100); log1p x-scale
 #   places zero at the far left then log-spaces 1, 10, 100
@@ -50,7 +50,7 @@ prep_data <- function(df) {
     mutate(
       IL1b_plot = case_when(
         is.na(IL1b_pgml) ~ NA_real_,   # preserve NAs
-        IL1b_pgml < 10   ~ 10,          # floor sub-detection values
+        IL1b_pgml < 1    ~ 1,           # floor sub-detection values
         TRUE             ~ IL1b_pgml
       ),
       Carprofen = factor(Carprofen, levels = c(0, 1, 10, 100)),
@@ -64,7 +64,7 @@ bcg <- prep_data(bcg_raw)
 # =============================================================
 # 3. Summary statistics — mean ± 95% CI per group
 # =============================================================
-# CI is floored at 10 pg/mL (lower bound cannot go below floor).
+# CI is floored at 1 pg/mL (lower bound cannot go below floor).
 # Groups with n = 0 are dropped; CI elements require n ≥ 2.
 
 calc_summary <- function(df) {
@@ -79,7 +79,7 @@ calc_summary <- function(df) {
     filter(n >= 1) %>%
     mutate(
       t_val = ifelse(n > 1, qt(0.975, df = n - 1), NA_real_),
-      ci_lo = pmax(mean - t_val * sem, 10),   # floor lower CI
+      ci_lo = pmax(mean - t_val * sem, 1),    # floor lower CI
       ci_hi = mean + t_val * sem
     )
 }
@@ -105,9 +105,9 @@ purple_pal <- c(
 # Breaks and limits are identical across LPS and BCG plots.
 # Upper limit (200) provides headroom above BCG max (~87 pg/mL).
 
-y_breaks <- c(10, 30, 100)
-y_labels <- c("10", "30", "100")
-y_limits <- c(8.5, 200)        # 8.5 gives visual padding below the floor
+y_breaks <- c(1, 10, 100)
+y_labels <- c("1", "10", "100")
+y_limits <- c(0.8, 200)        # 0.8 gives visual padding below the 1 pg/mL floor
 
 # =============================================================
 # 6. Plot function
@@ -191,7 +191,7 @@ make_plot <- function(sum_df, stim_label, stim_unit) {
       title   = paste0("IL-1\u03b2 Response to ", stim_label),
       caption = paste0(
         "Mean \u00b1 95% CI; n = 4 donors. ",
-        "Values \u003c 10\u2009pg/mL set to detection floor (10\u2009pg/mL)."
+        "Values \u003c 1\u2009pg/mL set to detection floor (1\u2009pg/mL)."
       )
     ) +
 
